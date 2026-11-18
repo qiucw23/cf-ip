@@ -1232,8 +1232,12 @@ async def availability_filter_candidates_async(candidates):
                 return
             result = await check_availability_async(node, local_public_ip)
             completed += 1
-            node_str, ok, stack, _, latencies = result
+            node_str, ok, stack, best_trace, latencies = result
             if ok:
+                real_loc = best_trace.get("loc", "").upper() if best_trace else ""
+                if real_loc and len(real_loc) == 2:
+                    ipport = node_str.split('#')[0]
+                    node_str = f"{ipport}#{real_loc}"
                 passed.append(node_str)
                 ip_info[node_str] = stack
                 if latencies:
@@ -1519,8 +1523,10 @@ def batch_update_cloudflare_dns(ip_list, ip_info=None, full_bw_results=None, tar
         lat_ms = float('inf')
         http_lat_ms = None
         http_jitter_ms = None
-        if latency_map and node in latency_map:
-            lat_ms = latency_map[node] * 1000
+        if latency_map:
+            lat = latency_map.get(node, latency_map.get(node.split('#')[0]))
+            if lat is not None:
+                lat_ms = lat * 1000
         if http_latency_map and node in http_latency_map:
             http_lat_ms = http_latency_map[node]
         if http_jitter_map and node in http_jitter_map:
@@ -1658,8 +1664,10 @@ def write_ip_txt(final_nodes, output_file, header_enabled, header_lines, footer_
                 line += f" {http_latency_map[node]:.2f} ms"
             if IP_TXT_SHOW_HTTP_JITTER and http_jitter_map and node in http_jitter_map:
                 line += f" {http_jitter_map[node]:.2f} ms"
-            if IP_TXT_SHOW_LATENCY and latency_map and node in latency_map:
-                line += f" {latency_map[node]*1000:.2f} ms"
+            if IP_TXT_SHOW_LATENCY and latency_map:
+                lat = latency_map.get(node, latency_map.get(node.split('#')[0]))
+                if lat is not None:
+                    line += f" {lat*1000:.2f} ms"
             if perline_enabled and perline_text:
                 line += perline_text
             f.write(line + "\n")
@@ -1770,7 +1778,10 @@ def main():
         log("错误", "没有通过成功率筛选的节点")
         sys.exit(0)
     results.sort(key=lambda x: (-x[3], x[1]))
-    latency_map = {node: lat for node, lat, _, _ in results}
+    latency_map = {}
+    for node, lat, _, _ in results:
+        latency_map[node] = lat
+        latency_map[node.split('#')[0]] = lat
     if USE_GLOBAL_MODE:
         candidates = [node for node, _, _, _ in results[:BANDWIDTH_CANDIDATES]]
         log("信息", f"TCP 候选池 {len(candidates)} 个节点")
@@ -1847,7 +1858,7 @@ def main():
         speed_map = {node: speed for node, speed in bw_results}
         scored_nodes = []
         for node, speed in bw_results:
-            tcp_lat = latency_map.get(node, 999.0)
+            tcp_lat = latency_map.get(node, latency_map.get(node.split('#')[0], 999.0))
             http_lat = http_latency_map.get(node, 999999.0)
             http_jitter = http_jitter_map.get(node, 999999.0)
             http_lat_sec = http_lat / 1000.0
@@ -1889,7 +1900,7 @@ def main():
         log("信息", "最终优选节点")
         for i, node in enumerate(final_selected, 1):
             speed = speed_map.get(node, 0)
-            tcp_lat = latency_map.get(node, float('inf'))
+            tcp_lat = latency_map.get(node, latency_map.get(node.split('#')[0], float('inf')))
             http_lat = http_latency_map.get(node, None)
             http_jitter = http_jitter_map.get(node, None)
             line = f"{i}. {node} 速度 {speed:.2f} Mbps"
