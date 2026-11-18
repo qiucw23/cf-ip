@@ -274,6 +274,20 @@ def load_config():
         for k in missing:
             config[k] = defaults[k]
         log("警告", f"配置缺失 {len(missing)} 项：{', '.join(missing)}")
+    secrets_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secrets.json")
+    if os.path.exists(secrets_file):
+        try:
+            with open(secrets_file, "r", encoding="utf-8") as sf:
+                sec = json.load(sf)
+                for k, v in sec.items():
+                    if v and not str(v).startswith("your_"):
+                        config[k] = v
+        except Exception as e:
+            log("警告", f"读取 secrets.json 异常: {e}")
+    for k in ("CF_API_TOKEN", "CF_ZONE_ID", "CF_DNS_RECORD_NAME"):
+        env_val = os.getenv(k)
+        if env_val:
+            config[k] = env_val
     return config
 
 cfg = load_config()
