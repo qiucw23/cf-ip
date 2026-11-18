@@ -40,7 +40,7 @@
     "PRE_FILTER_BLOCKED_ENABLED": true,
     "_comment_PRE_FILTER_BLOCKED_ENABLED": "前置黑名单开关（true=在TCP测试前剔除下方国家）",
 
-    "PRE_FILTER_BLOCKED_COUNTRIES": ["CN"],
+    "PRE_FILTER_BLOCKED_COUNTRIES": ["CN", "HK"],
     "_comment_PRE_FILTER_BLOCKED_COUNTRIES": "前置屏蔽的国家代码列表，不受白名单影响",
 
     "PRE_FILTER_PORT_ENABLED": true,
@@ -195,7 +195,7 @@
     "BLOCKED_COUNTRIES": [
         "BD", "BI", "BY", "CD", "CF", "CN", "CU", "DE", "ET", "HK",
         "IR", "KP", "LY", "MO", "NG", "NL", "PK", "RU", "SD", "SO",
-        "SY", "TH", "TW", "UA", "VE", "VN", "YE", "ZW", "HK"
+        "SY", "TH", "TW", "UA", "VE", "VN", "YE", "ZW"
     ],
     "_comment_BLOCKED_COUNTRIES": "【仅DNS】黑名单国家代码列表（DNS 更新时剔除这些国家的节点）",
 
