@@ -4,7 +4,7 @@
     "USE_GLOBAL_MODE": true,
     "_comment_USE_GLOBAL_MODE": "true=全局最优N个；false=每个国家最优N个",
 
-    "GLOBAL_TOP_N": 5,
+    "GLOBAL_TOP_N": 50,
     "_comment_GLOBAL_TOP_N": "全局模式下最终保留的节点数量",
 
     "PER_COUNTRY_TOP_N": 5,
