@@ -52,13 +52,13 @@ def log(level, msg, end="\n"):
     global _last_progress_len
     line = f"[{time.strftime('%H:%M:%S')}] [{level}] {msg}"
     if end == "\n" and level != "进度":
-        print(line)
+        print(line, flush=True)
     elif end == "\n" and level == "进度":
         if _IS_TTY:
             pad = max(0, _last_progress_len - len(line))
             print(f"\r{line}{' ' * pad}")
         else:
-            print(line)
+            print(line, flush=True)
         _last_progress_len = 0
     elif _IS_TTY:
         pad = max(0, _last_progress_len - len(line))
@@ -203,7 +203,7 @@ DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 def load_config():
     defaults = {
         "USE_GLOBAL_MODE": True, "GLOBAL_TOP_N": 15, "PER_COUNTRY_TOP_N": 1,
-        "BANDWIDTH_CANDIDATES": 300, "TCP_PROBES": 1, "MIN_SUCCESS_RATE": 1.0,
+        "BANDWIDTH_CANDIDATES": 100, "TCP_PROBES": 1, "MIN_SUCCESS_RATE": 1.0,
         "TCP_LATENCY_WEIGHT": 0.0, "TIMEOUT": 3.0, "SOCKET_DEFAULT_TIMEOUT": 3,
         "PROGRESS_PRINT_INTERVAL": 1, "FILTER_COUNTRIES_ENABLED": False,
         "ALLOWED_COUNTRIES": ["HK"], "PRE_FILTER_BLOCKED_ENABLED": True,
@@ -251,7 +251,7 @@ def load_config():
         "BANDWIDTH_PROCESS_BUFFER": 3, "BANDWIDTH_CONNECT_TIMEOUT": 3,
         "SPEED_WEIGHT": 3.0, "MIN_SPEED_MBPS": 5.0, "IP_CALIBRATION_CONCURRENCY": 300,
         "MAX_WORKERS": 300, "AVAILABILITY_WORKERS": 300, "FALLBACK_WORKERS": 300,
-        "BANDWIDTH_WORKERS": 3, "IP_RISK_WORKERS": 300,
+        "BANDWIDTH_WORKERS": 4, "IP_RISK_WORKERS": 300,
         "DNS_UPDATE_MAX_RETRIES": 3, "DNS_UPDATE_RETRY_DELAY": 3,
         "GITHUB_SYNC_MAX_RETRIES": 3, "GITHUB_SYNC_RETRY_DELAY": 3,
         "GIT_SYNC_PROCESS_TIMEOUT": 60, "AD_HEADER_ENABLED": False,
