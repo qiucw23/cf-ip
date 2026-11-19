@@ -211,10 +211,10 @@
     "DNS_UPDATE_TARGET_COUNT": 15,
     "_comment_DNS_UPDATE_TARGET_COUNT": "DNS 更新时写入的最大 IP 数量，独立于筛选模式",
 
-    "BANDWIDTH_SIZE_MB": 1.0,
+    "BANDWIDTH_SIZE_MB": 5.0,
     "_comment_BANDWIDTH_SIZE_MB": "带宽测速下载文件大小（MB）",
 
-    "BANDWIDTH_TIMEOUT": 3,
+    "BANDWIDTH_TIMEOUT": 10,
     "_comment_BANDWIDTH_TIMEOUT": "单个节点带宽测速超时（秒）",
 
     "BANDWIDTH_RETRY_MAX": 3,

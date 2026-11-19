@@ -245,7 +245,7 @@ def load_config():
         ],
         "DNS_IP_RISK_FILTER_ENABLED": False, "DNS_IP_RISK_MAX_LEVEL": "高风险",
         "IP_RISK_TIMEOUT": 3, "DNS_UPDATE_TARGET_COUNT": 15,
-        "BANDWIDTH_SIZE_MB": 1.0, "BANDWIDTH_TIMEOUT": 3, "BANDWIDTH_RETRY_MAX": 3,
+        "BANDWIDTH_SIZE_MB": 5.0, "BANDWIDTH_TIMEOUT": 10, "BANDWIDTH_RETRY_MAX": 3,
         "BANDWIDTH_RETRY_DELAY": 3,
         "BANDWIDTH_URL_TEMPLATE": "{scheme}://speed.cloudflare.com:{port}/__down?bytes={bytes}",
         "BANDWIDTH_PROCESS_BUFFER": 3, "BANDWIDTH_CONNECT_TIMEOUT": 3,
