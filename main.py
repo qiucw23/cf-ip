@@ -249,7 +249,7 @@ def load_config():
         "BANDWIDTH_RETRY_DELAY": 3,
         "BANDWIDTH_URL_TEMPLATE": "{scheme}://speed.cloudflare.com:{port}/__down?bytes={bytes}",
         "BANDWIDTH_PROCESS_BUFFER": 3, "BANDWIDTH_CONNECT_TIMEOUT": 3,
-        "SPEED_WEIGHT": 3.0, "IP_CALIBRATION_CONCURRENCY": 300,
+        "SPEED_WEIGHT": 3.0, "MIN_SPEED_MBPS": 5.0, "IP_CALIBRATION_CONCURRENCY": 300,
         "MAX_WORKERS": 300, "AVAILABILITY_WORKERS": 300, "FALLBACK_WORKERS": 300,
         "BANDWIDTH_WORKERS": 3, "IP_RISK_WORKERS": 300,
         "DNS_UPDATE_MAX_RETRIES": 3, "DNS_UPDATE_RETRY_DELAY": 3,
@@ -369,6 +369,7 @@ BANDWIDTH_URL_TEMPLATE = cfg["BANDWIDTH_URL_TEMPLATE"]
 BANDWIDTH_PROCESS_BUFFER = cfg["BANDWIDTH_PROCESS_BUFFER"]
 BANDWIDTH_CONNECT_TIMEOUT = cfg["BANDWIDTH_CONNECT_TIMEOUT"]
 SPEED_WEIGHT = cfg["SPEED_WEIGHT"]
+MIN_SPEED_MBPS = float(cfg.get("MIN_SPEED_MBPS", 0.0))
 IP_CALIBRATION_CONCURRENCY = cfg["IP_CALIBRATION_CONCURRENCY"]
 MAX_WORKERS = cfg["MAX_WORKERS"]
 AVAILABILITY_WORKERS = cfg["AVAILABILITY_WORKERS"]
@@ -1710,6 +1711,10 @@ def main():
         log("信息", f"输出白名单 启用（{', '.join(OUTPUT_ALLOWED_COUNTRIES)}）")
     else:
         log("信息", "输出白名单 禁用")
+    if MIN_SPEED_MBPS > 0:
+        log("信息", f"最低速度限制 启用（≥{MIN_SPEED_MBPS:.1f} Mbps）")
+    else:
+        log("信息", "最低速度限制 禁用")
     log("信息", f"DNS IPv6 过滤 {'启用' if FILTER_IPV6_AVAILABILITY else '禁用'}")
     if FILTER_BLOCKED_COUNTRIES_ENABLED and BLOCKED_COUNTRIES:
         log("信息", f"DNS 黑名单 启用（{', '.join(BLOCKED_COUNTRIES)}）")
@@ -1816,11 +1821,27 @@ def main():
         bw_results = _run_async(bandwidth_filter_async(candidates_after_availability))
         if bw_results:
             log("信息", f"带宽测速通过 {len(bw_results)} 个节点")
-            break
+            if MIN_SPEED_MBPS > 0:
+                fast_results = [r for r in bw_results if r[1] >= MIN_SPEED_MBPS]
+                log("信息", f"最低速度过滤（≥{MIN_SPEED_MBPS:.1f} Mbps）：{len(bw_results)} → {len(fast_results)}")
+                if fast_results:
+                    bw_results = fast_results
+                    break
+                else:
+                    log("警告", f"第 {attempt} 轮没有节点达到 {MIN_SPEED_MBPS:.1f} Mbps 阈值")
+            else:
+                break
         log("信息", "带宽测速通过 0 个节点")
         if attempt < BANDWIDTH_RETRY_MAX:
             log("警告", f"本轮测速 0 结果，等待 {BANDWIDTH_RETRY_DELAY}s 重试")
             time.sleep(BANDWIDTH_RETRY_DELAY)
+    if bw_results and MIN_SPEED_MBPS > 0:
+        fast_results = [r for r in bw_results if r[1] >= MIN_SPEED_MBPS]
+        if fast_results:
+            bw_results = fast_results
+        else:
+            log("警告", f"经 {BANDWIDTH_RETRY_MAX} 轮测速仍无节点达到 {MIN_SPEED_MBPS:.1f} Mbps，降级保留测速最快节点")
+            bw_results.sort(key=lambda x: x[1], reverse=True)
     if not bw_results:
         log("错误", "带宽测速重试后仍 0 结果，降级用 TCP 排序")
         send_wxpusher_notification(

@@ -235,6 +235,9 @@
     "SPEED_WEIGHT": 3.0,
     "_comment_SPEED_WEIGHT": "带宽在综合排序中的权重（越大越看重带宽）",
 
+    "MIN_SPEED_MBPS": 5.0,
+    "_comment_MIN_SPEED_MBPS": "最低带宽测速阈值（Mbps），低于此速度的节点直接淘汰",
+
     "IP_CALIBRATION_CONCURRENCY": 300,
     "_comment_IP_CALIBRATION_CONCURRENCY": "地区校准的并发查询数（根据 token 数量调整）",
 
