@@ -10,7 +10,7 @@
     "PER_COUNTRY_TOP_N": 5,
     "_comment_PER_COUNTRY_TOP_N": "分国家模式下每个国家保留的节点数量",
 
-    "BANDWIDTH_CANDIDATES": 100,
+    "BANDWIDTH_CANDIDATES": 1000,
     "_comment_BANDWIDTH_CANDIDATES": "进入带宽测速的候选节点数（从TCP通过者中选取前N个）",
 
     "TCP_PROBES": 1,
@@ -99,10 +99,10 @@
     "FETCH_RETRY_DELAY": 3,
     "_comment_FETCH_RETRY_DELAY": "获取节点列表重试间隔（秒）",
 
-    "FETCH_TIMEOUT": 3,
+    "FETCH_TIMEOUT": 10,
     "_comment_FETCH_TIMEOUT": "获取节点列表读取超时（秒）",
 
-    "FETCH_CONNECT_TIMEOUT": 3,
+    "FETCH_CONNECT_TIMEOUT": 10,
     "_comment_FETCH_CONNECT_TIMEOUT": "获取节点列表连接超时（秒）",
 
     "IP_CALIBRATION_ENABLED": false,
@@ -211,10 +211,10 @@
     "DNS_UPDATE_TARGET_COUNT": 15,
     "_comment_DNS_UPDATE_TARGET_COUNT": "DNS 更新时写入的最大 IP 数量，独立于筛选模式",
 
-    "BANDWIDTH_SIZE_MB": 5.0,
+    "BANDWIDTH_SIZE_MB": 2,
     "_comment_BANDWIDTH_SIZE_MB": "带宽测速下载文件大小（MB）",
 
-    "BANDWIDTH_TIMEOUT": 10,
+    "BANDWIDTH_TIMEOUT": 5,
     "_comment_BANDWIDTH_TIMEOUT": "单个节点带宽测速超时（秒）",
 
     "BANDWIDTH_RETRY_MAX": 3,
@@ -250,7 +250,7 @@
     "FALLBACK_WORKERS": 300,
     "_comment_FALLBACK_WORKERS": "备用国家查询的并发协程数（当标签无法识别时通过反代验证查询）",
 
-    "BANDWIDTH_WORKERS": 4,
+    "BANDWIDTH_WORKERS": 2,
     "_comment_BANDWIDTH_WORKERS": "带宽测速的并发协程数",
 
     "IP_RISK_WORKERS": 300,

@@ -221,8 +221,8 @@ def load_config():
             {"url": "https://zip.cm.edu.kg/all.txt", "enabled": True},
             {"url": "https://countrymerge.pages.dev/all.txt", "enabled": True}
         ],
-        "FETCH_MAX_RETRIES": 3, "FETCH_RETRY_DELAY": 3, "FETCH_TIMEOUT": 3,
-        "FETCH_CONNECT_TIMEOUT": 3, "IP_CALIBRATION_ENABLED": False,
+        "FETCH_MAX_RETRIES": 3, "FETCH_RETRY_DELAY": 3, "FETCH_TIMEOUT": 15,
+        "FETCH_CONNECT_TIMEOUT": 10, "IP_CALIBRATION_ENABLED": False,
         "TOKEN_FAILURE_THRESHOLD": 3, "IP_CALIBRATION_MIN_INTERVAL": 0.1,
         "IP_CALIBRATION_REQUEST_TIMEOUT": 3,
         "IP_CALIBRATION_TOKEN_FILE": "valid_tokens.txt",
