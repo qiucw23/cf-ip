@@ -249,7 +249,7 @@ def load_config():
         "BANDWIDTH_RETRY_DELAY": 3,
         "BANDWIDTH_URL_TEMPLATE": "{scheme}://speed.cloudflare.com:{port}/__down?bytes={bytes}",
         "BANDWIDTH_PROCESS_BUFFER": 3, "BANDWIDTH_CONNECT_TIMEOUT": 3,
-        "SPEED_WEIGHT": 3.0, "MIN_SPEED_MBPS": 5.0, "IP_CALIBRATION_CONCURRENCY": 300,
+        "SPEED_WEIGHT": 3.0, "MIN_SPEED_MBPS": 5.0, "MIN_RESULT_COUNT": 5, "IP_CALIBRATION_CONCURRENCY": 300,
         "MAX_WORKERS": 300, "AVAILABILITY_WORKERS": 300, "FALLBACK_WORKERS": 300,
         "BANDWIDTH_WORKERS": 4, "IP_RISK_WORKERS": 300,
         "DNS_UPDATE_MAX_RETRIES": 3, "DNS_UPDATE_RETRY_DELAY": 3,
@@ -370,6 +370,7 @@ BANDWIDTH_PROCESS_BUFFER = cfg["BANDWIDTH_PROCESS_BUFFER"]
 BANDWIDTH_CONNECT_TIMEOUT = cfg["BANDWIDTH_CONNECT_TIMEOUT"]
 SPEED_WEIGHT = cfg["SPEED_WEIGHT"]
 MIN_SPEED_MBPS = float(cfg.get("MIN_SPEED_MBPS", 0.0))
+MIN_RESULT_COUNT = int(cfg.get("MIN_RESULT_COUNT", 5))
 IP_CALIBRATION_CONCURRENCY = cfg["IP_CALIBRATION_CONCURRENCY"]
 MAX_WORKERS = cfg["MAX_WORKERS"]
 AVAILABILITY_WORKERS = cfg["AVAILABILITY_WORKERS"]
@@ -1932,15 +1933,18 @@ def main():
             if tcp_lat != float('inf'):
                 line += f" 延迟 {tcp_lat*1000:.2f} ms"
             log("信息", line)
-    write_ip_txt(final_selected, OUTPUT_FILE,
-                 AD_HEADER_ENABLED, AD_HEADER_LINES,
-                 AD_FOOTER_ENABLED, AD_FOOTER_LINES,
-                 AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
-                 speed_map=speed_map,
-                 latency_map=latency_map,
-                 http_latency_map=http_latency_map,
-                 http_jitter_map=http_jitter_map)
-    log("信息", f"ip.txt（{len(final_selected)} 个节点）")
+    if len(final_selected) < MIN_RESULT_COUNT and os.path.exists(OUTPUT_FILE) and os.path.getsize(OUTPUT_FILE) > 0:
+        log("警告", f"本次优选仅产生 {len(final_selected)} 个达标节点（少于 {MIN_RESULT_COUNT} 个），保留原有 {OUTPUT_FILE} 不予覆盖")
+    else:
+        write_ip_txt(final_selected, OUTPUT_FILE,
+                     AD_HEADER_ENABLED, AD_HEADER_LINES,
+                     AD_FOOTER_ENABLED, AD_FOOTER_LINES,
+                     AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
+                     speed_map=speed_map,
+                     latency_map=latency_map,
+                     http_latency_map=http_latency_map,
+                     http_jitter_map=http_jitter_map)
+        log("信息", f"ip.txt（{len(final_selected)} 个节点）")
     ip_list = [node.split(':')[0] for node in final_selected]
     batch_update_cloudflare_dns(
         ip_list, ip_info=avail_ip_info, full_bw_results=bw_results,

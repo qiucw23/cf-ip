@@ -238,6 +238,9 @@
     "MIN_SPEED_MBPS": 5.0,
     "_comment_MIN_SPEED_MBPS": "最低带宽测速阈值（Mbps），低于此速度的节点直接淘汰",
 
+    "MIN_RESULT_COUNT": 5,
+    "_comment_MIN_RESULT_COUNT": "优选节点最低保留阈值，当新测出的达标节点数少于此值时，保留原有 ip.txt 不予清空覆盖",
+
     "IP_CALIBRATION_CONCURRENCY": 300,
     "_comment_IP_CALIBRATION_CONCURRENCY": "地区校准的并发查询数（根据 token 数量调整）",
 
