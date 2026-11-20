@@ -38,11 +38,11 @@
     "PROGRESS_PRINT_INTERVAL": 1,
     "_comment_PROGRESS_PRINT_INTERVAL": "进度打印刷新间隔（秒），避免频繁 I/O",
 
-    "FILTER_COUNTRIES_ENABLED": false,
-    "_comment_FILTER_COUNTRIES_ENABLED": "前置白名单开关（true=仅保留下方 ALLOWED_COUNTRIES 中的国家，其余在 TCP 测试前剔除）",
+    "FILTER_COUNTRIES_ENABLED": true,
+    "_comment_FILTER_COUNTRIES_ENABLED": "前置白名单开关（true=仅保留下方 ALLOWED_COUNTRIES 中的主要国家，其余在 TCP 测试前剔除）",
 
-    "ALLOWED_COUNTRIES": ["HK"],
-    "_comment_ALLOWED_COUNTRIES": "前置白名单列表（仅在 FILTER_COUNTRIES_ENABLED=true 时生效）",
+    "ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "DE", "GB"],
+    "_comment_ALLOWED_COUNTRIES": "国家白名单列表（仅保留主要国家：美国 US、日本 JP、新加坡 SG、韩国 KR、德国 DE、英国 GB）",
 
     "PRE_FILTER_BLOCKED_ENABLED": true,
     "_comment_PRE_FILTER_BLOCKED_ENABLED": "前置黑名单开关（true=在TCP测试前剔除下方国家）",
@@ -187,11 +187,11 @@
     "JITTER_WEIGHT": 3.0,
     "_comment_JITTER_WEIGHT": "首字节延迟抖动（标准差）在综合排序中的权重（越大越排斥延迟波动大的节点）",
 
-    "OUTPUT_FILTER_COUNTRIES_ENABLED": false,
-    "_comment_OUTPUT_FILTER_COUNTRIES_ENABLED": "【仅 ip.txt】输出白名单开关（true=仅保留下方 OUTPUT_ALLOWED_COUNTRIES 中的国家，其余剔除，过滤后为空则降级使用未过滤列表）",
+    "OUTPUT_FILTER_COUNTRIES_ENABLED": true,
+    "_comment_OUTPUT_FILTER_COUNTRIES_ENABLED": "【仅 ip.txt】输出白名单开关（true=仅保留下方 OUTPUT_ALLOWED_COUNTRIES 中的主要国家，其余剔除）",
 
-    "OUTPUT_ALLOWED_COUNTRIES": ["HK"],
-    "_comment_OUTPUT_ALLOWED_COUNTRIES": "【仅 ip.txt】输出白名单列表（仅在 OUTPUT_FILTER_COUNTRIES_ENABLED=true 时生效）",
+    "OUTPUT_ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "DE", "GB"],
+    "_comment_OUTPUT_ALLOWED_COUNTRIES": "【仅 ip.txt】输出白名单列表（仅保留主要国家）",
 
     "FILTER_IPV6_AVAILABILITY": true,
     "_comment_FILTER_IPV6_AVAILABILITY": "【仅DNS】是否过滤落地为 IPv6 的节点",
