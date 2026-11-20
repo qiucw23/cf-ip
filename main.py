@@ -2,6 +2,8 @@
 import requests
 import socket
 import time
+import datetime
+import hashlib
 import sys
 import re
 import os
@@ -764,17 +766,55 @@ def parse_adaptive(text):
             pass
     return _parse_text_nodes(text)
 
+def _get_source_cache_path(url):
+    cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source_cache")
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+    except Exception:
+        pass
+    parsed = urlparse(url)
+    slug = re.sub(r'[^a-zA-Z0-9_-]', '_', f"{parsed.netloc}_{parsed.path}").strip('_')
+    h = hashlib.md5(url.encode('utf-8')).hexdigest()[:8]
+    filename = f"{slug[:40]}_{h}.txt"
+    return os.path.join(cache_dir, filename)
+
 def fetch_additional_source(url):
     if not url:
         return []
+    local_proxy = "http://127.0.0.1:7890"
+    domain = urlparse(url).netloc.lower()
+    # 对于境内直连高丢包/阻断域名（如 pages.dev, raw.githubusercontent.com 等），直接或优先使用本机代理
+    is_known_blocked = domain.endswith(".pages.dev") or "github" in domain or "gitlab" in domain
+    cache_path = _get_source_cache_path(url)
+
     for attempt in range(1, FETCH_MAX_RETRIES + 1):
         try:
             log("信息", f"拉取数据源 第 {attempt}/{FETCH_MAX_RETRIES} 次（{url}）")
             headers = {"Accept-Encoding": "gzip, deflate, br", "User-Agent": USER_AGENT}
-            resp = requests.get(url, timeout=(FETCH_CONNECT_TIMEOUT, FETCH_TIMEOUT), headers=headers)
-            resp.raise_for_status()
+            use_proxy_first = is_known_blocked or (attempt > 1)
+            proxies = {"http": local_proxy, "https": local_proxy} if use_proxy_first else None
+            try:
+                cur_timeout = (FETCH_CONNECT_TIMEOUT, FETCH_TIMEOUT) if proxies else (6, 12)
+                resp = requests.get(url, timeout=cur_timeout, headers=headers, proxies=proxies)
+                resp.raise_for_status()
+            except Exception as direct_err:
+                if proxies is None:
+                    log("警告", f"直连拉取异常 ({direct_err})，自动切换本机代理重试...")
+                    resp = requests.get(url, timeout=(FETCH_CONNECT_TIMEOUT, FETCH_TIMEOUT), headers=headers,
+                                        proxies={"http": local_proxy, "https": local_proxy})
+                    resp.raise_for_status()
+                else:
+                    raise direct_err
+
             nodes = parse_adaptive(resp.text)
             log("信息", f"数据源解析完成（{len(nodes)} 节点，{url}）")
+            # 成功解析后保存备份至本地历史数据源缓存
+            if nodes and resp.text:
+                try:
+                    with open(cache_path, "w", encoding="utf-8") as cf:
+                        cf.write(resp.text)
+                except Exception:
+                    pass
             return nodes
         except Exception as e:
             log("错误", f"数据源请求失败（{url}）: {e}")
@@ -782,7 +822,19 @@ def fetch_additional_source(url):
                 log("警告", f"等待 {FETCH_RETRY_DELAY}s 重试")
                 time.sleep(FETCH_RETRY_DELAY)
             else:
-                log("错误", f"已尝试 {FETCH_MAX_RETRIES} 次，放弃 {url}")
+                log("错误", f"已尝试 {FETCH_MAX_RETRIES} 次，网络请求放弃 {url}")
+                # 网络全失败时，启用本地离线备份数据源兜底
+                if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+                    try:
+                        with open(cache_path, "r", encoding="utf-8", errors="ignore") as cf:
+                            cached_text = cf.read()
+                        cached_nodes = parse_adaptive(cached_text)
+                        if cached_nodes:
+                            mtime_str = datetime.datetime.fromtimestamp(os.path.getmtime(cache_path)).strftime('%Y-%m-%d %H:%M:%S')
+                            log("警告", f"🛡️ 已启用本地历史备份数据源（{len(cached_nodes)} 节点，备份时间：{mtime_str}，来源：{cache_path}）")
+                            return cached_nodes
+                    except Exception as fe:
+                        log("错误", f"读取本地备份数据源异常: {fe}")
                 return []
 
 class IpInfoAsync:

@@ -108,10 +108,10 @@
     "FETCH_RETRY_DELAY": 3,
     "_comment_FETCH_RETRY_DELAY": "获取节点列表重试间隔（秒）",
 
-    "FETCH_TIMEOUT": 10,
+    "FETCH_TIMEOUT": 30,
     "_comment_FETCH_TIMEOUT": "获取节点列表读取超时（秒）",
 
-    "FETCH_CONNECT_TIMEOUT": 10,
+    "FETCH_CONNECT_TIMEOUT": 15,
     "_comment_FETCH_CONNECT_TIMEOUT": "获取节点列表连接超时（秒）",
 
     "IP_CALIBRATION_ENABLED": false,
