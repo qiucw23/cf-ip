@@ -7,13 +7,10 @@
     "GLOBAL_TOP_N": 50,
     "_comment_GLOBAL_TOP_N": "全局模式下最终保留的节点数量",
 
-    "PER_COUNTRY_TOP_N": 5,
+    "PER_COUNTRY_TOP_N": 10,
     "_comment_PER_COUNTRY_TOP_N": "分国家模式下默认每个国家保留的节点数量",
 
     "COUNTRY_QUOTA": {
-        "US": 10,
-        "JP": 10,
-        "SG": 10
     },
     "_comment_COUNTRY_QUOTA": "指定国家保留数量：美国10个、日本10个、新加坡10个，其余国家按 PER_COUNTRY_TOP_N 取5个",
 
