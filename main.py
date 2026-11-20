@@ -1968,6 +1968,17 @@ def main():
         final_nodes=final_selected
     )
     sync_to_github()
+    try:
+        sync_script = "/home/qiucw/proxy-panel-deploy/sync_cf_ip.sh"
+        if os.path.exists(sync_script):
+            log("信息", "正在自动同步至本机 Mihomo 代理...")
+            res = subprocess.run(["sudo", sync_script], capture_output=True, text=True, timeout=30)
+            if res.returncode == 0:
+                log("信息", "本机 Mihomo 代理自动热重载成功")
+            else:
+                log("警告", f"自动同步 Mihomo 失败: {res.stderr or res.stdout}")
+    except Exception as e:
+        log("警告", f"自动同步 Mihomo 异常: {e}")
 
 if __name__ == "__main__":
     import atexit

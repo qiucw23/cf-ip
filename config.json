@@ -263,7 +263,7 @@
     "FALLBACK_WORKERS": 300,
     "_comment_FALLBACK_WORKERS": "备用国家查询的并发协程数（当标签无法识别时通过反代验证查询）",
 
-    "BANDWIDTH_WORKERS": 2,
+    "BANDWIDTH_WORKERS": 4,
     "_comment_BANDWIDTH_WORKERS": "带宽测速的并发协程数",
 
     "IP_RISK_WORKERS": 300,
