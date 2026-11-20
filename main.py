@@ -1972,18 +1972,15 @@ def main():
         for node_str, lat, country, succ in results:
             c_code = country.split()[0].upper() if country else ''
             country_nodes[c_code].append((node_str, lat, succ))
-        total_countries = len(country_nodes)
+        
+        target_countries = [c.upper() for c in COUNTRY_QUOTA.keys()] if COUNTRY_QUOTA else ([c.upper() for c in OUTPUT_ALLOWED_COUNTRIES] if OUTPUT_FILTER_COUNTRIES_ENABLED and OUTPUT_ALLOWED_COUNTRIES else None)
+        filtered_country_nodes = {c: n for c, n in country_nodes.items() if (not target_countries or c in target_countries)}
+        total_countries = len(filtered_country_nodes)
         candidates = []
-        for country, nodes in country_nodes.items():
+        for country, nodes in filtered_country_nodes.items():
             nodes_sorted = sorted(nodes, key=lambda x: (-x[2], x[1]))
-            if country in COUNTRY_QUOTA:
-                target_quota = COUNTRY_QUOTA[country]
-                limit = min(len(nodes_sorted), max(target_quota * 10, 100))
-            else:
-                # 对非目标国家，仅吸纳超低延迟节点（TCP ≤ 150ms，极大概率是数据源标错但实际就近在亚太的优质节点）
-                fast_other = [n for n in nodes_sorted if n[1] <= 0.150]
-                limit = min(len(fast_other), 10)
-                nodes_sorted = fast_other
+            target_quota = COUNTRY_QUOTA.get(country, PER_COUNTRY_TOP_N)
+            limit = min(len(nodes_sorted), max(target_quota * 10, 100))
             for node_str, lat, succ in nodes_sorted[:limit]:
                 candidates.append(node_str)
         log("信息", f"分国家候选池：{total_countries} 国，合计 {len(candidates)} 个候选节点")
