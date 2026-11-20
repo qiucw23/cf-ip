@@ -14,13 +14,13 @@
         "US": 10,
         "JP": 10,
         "SG": 10,
-        "KR": 10,
-        "DE": 10,
-        "GB": 10
+        "KR": 5,
+        "DE": 5,
+        "GB": 5
     },
     "_comment_COUNTRY_QUOTA": "指定国家保留数量：美国、日本、新加坡、韩国、德国、英国 各10个",
 
-    "BANDWIDTH_CANDIDATES": 1000,
+    "BANDWIDTH_CANDIDATES": 500,
     "_comment_BANDWIDTH_CANDIDATES": "进入带宽测速的候选节点数（从TCP通过者中选取前N个）",
 
     "TCP_PROBES": 1,
