@@ -4,3 +4,8 @@ __pycache__/
 *.log
 *.lock
 .run.lock
+history_nodes.txt
+.github_token
+.git_credentials
+*.token
+.env

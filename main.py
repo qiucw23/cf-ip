@@ -5,6 +5,7 @@ import time
 import sys
 import re
 import os
+import signal
 import subprocess
 import shutil
 import json
@@ -1614,10 +1615,12 @@ def sync_to_github():
         script_name = "git_sync.ps1"
         interpreter = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"]
         creationflags = subprocess.CREATE_NO_WINDOW
+        start_new_session = False
     else:
         script_name = "git_sync.sh"
         interpreter = ["bash"]
         creationflags = 0
+        start_new_session = True
     script_path = os.path.join(script_dir, script_name)
     if not os.path.exists(script_path):
         log("警告", f"未找到 {script_name}，跳过 GitHub 同步")
@@ -1627,12 +1630,25 @@ def sync_to_github():
             os.chmod(script_path, 0o755)
         except Exception:
             pass
+
+    # 清洗子进程环境变量，避免主程序设置的 NO_PROXY="*" 导致 git 强制绕过代理直连 GitHub 超时卡死
+    clean_env = os.environ.copy()
+    for k in ("NO_PROXY", "no_proxy"):
+        clean_env.pop(k, None)
+
     for attempt in range(1, GITHUB_SYNC_MAX_RETRIES + 1):
         log("信息", f"GitHub 同步 第 {attempt}/{GITHUB_SYNC_MAX_RETRIES} 次")
         try:
             cmd = interpreter + [script_path]
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       text=True, creationflags=creationflags)
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                creationflags=creationflags,
+                start_new_session=start_new_session,
+                env=clean_env
+            )
             try:
                 stdout, stderr = process.communicate(timeout=GIT_SYNC_PROCESS_TIMEOUT)
                 if process.returncode == 0:
@@ -1643,7 +1659,13 @@ def sync_to_github():
                     if stderr:
                         log("错误", f"GitHub stderr: {stderr.strip()}")
             except subprocess.TimeoutExpired:
-                process.kill()
+                if sys.platform != "win32":
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except Exception:
+                        process.kill()
+                else:
+                    process.kill()
                 process.communicate()
                 log("错误", f"GitHub 推送超时（>{GIT_SYNC_PROCESS_TIMEOUT}s）")
         except Exception as e:
@@ -2127,7 +2149,7 @@ def main():
         sync_script = "/home/qiucw/proxy-panel-deploy/sync_cf_ip.sh"
         if os.path.exists(sync_script):
             log("信息", "正在自动同步至本机 Mihomo 代理...")
-            res = subprocess.run(["sudo", sync_script], capture_output=True, text=True, timeout=30)
+            res = subprocess.run(["sudo", "-n", sync_script], capture_output=True, text=True, timeout=30)
             if res.returncode == 0:
                 log("信息", "本机 Mihomo 代理自动热重载成功")
             else:
@@ -2135,7 +2157,20 @@ def main():
     except Exception as e:
         log("警告", f"自动同步 Mihomo 异常: {e}")
 
+def check_rotate_cron_log():
+    try:
+        cron_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cfnb_cron.log")
+        if os.path.exists(cron_log) and os.path.getsize(cron_log) > 5 * 1024 * 1024:
+            with open(cron_log, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            if len(lines) > 5000:
+                with open(cron_log, "w", encoding="utf-8") as f:
+                    f.writelines(lines[-5000:])
+    except Exception:
+        pass
+
 if __name__ == "__main__":
+    check_rotate_cron_log()
     import atexit
     if not acquire_single_instance():
         log("警告", "本程序已在运行，退出")
