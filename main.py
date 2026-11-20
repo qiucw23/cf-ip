@@ -229,6 +229,7 @@ def load_config():
         "IP_CALIBRATION_TOKEN_FILE": "valid_tokens.txt",
         "IP_CALIBRATION_CACHE_FILE": "ipinfo_cache.txt",
         "OUTPUT_FILE": "ip.txt", "ENABLE_LOGGING": False, "LOG_FILE": "cfnb.log",
+        "REGIONAL_FILES_ENABLED": True, "REGIONAL_COUNTRIES": ["US", "JP", "SG", "KR", "TW"],
         "FORCE_DIRECT": False, "USER_AGENT": DEFAULT_UA, "TEST_AVAILABILITY": True,
         "PROBE_HOST": "cloudflare-ech.com", "PROBE_PATH": "/cdn-cgi/trace",
         "AVAILABILITY_TIMEOUT": 3, "AVAILABILITY_CONNECT_TIMEOUT": 3,
@@ -296,6 +297,8 @@ USE_GLOBAL_MODE = cfg["USE_GLOBAL_MODE"]
 GLOBAL_TOP_N = cfg["GLOBAL_TOP_N"]
 PER_COUNTRY_TOP_N = cfg["PER_COUNTRY_TOP_N"]
 COUNTRY_QUOTA = {str(k).upper(): int(v) for k, v in cfg.get("COUNTRY_QUOTA", {}).items()}
+REGIONAL_FILES_ENABLED = cfg.get("REGIONAL_FILES_ENABLED", True)
+REGIONAL_COUNTRIES = [str(c).upper() for c in cfg.get("REGIONAL_COUNTRIES", ["US", "JP", "SG", "KR", "TW"])]
 BANDWIDTH_CANDIDATES = cfg["BANDWIDTH_CANDIDATES"]
 TCP_PROBES = cfg["TCP_PROBES"]
 MIN_SUCCESS_RATE = cfg["MIN_SUCCESS_RATE"]
@@ -1661,6 +1664,9 @@ def write_ip_txt(final_nodes, output_file, header_enabled, header_lines, footer_
             for line in header_lines:
                 f.write(line + "\n")
         for node in final_nodes:
+            if " Mbps" in node or " ms" in node:
+                f.write(node + "\n")
+                continue
             line = node
             if IP_TXT_SHOW_BANDWIDTH and speed_map and node in speed_map:
                 line += f" {speed_map[node]:.2f} Mbps"
@@ -1678,6 +1684,77 @@ def write_ip_txt(final_nodes, output_file, header_enabled, header_lines, footer_
         if footer_enabled:
             for line in footer_lines:
                 f.write(line + "\n")
+
+def process_and_save_ip_files(scored_or_sorted_nodes, output_file,
+                              speed_map=None, latency_map=None,
+                              http_latency_map=None, http_jitter_map=None):
+    """
+    根据地区生成五个独立的地区文件（ip_us.txt, ip_jp.txt, ip_sg.txt, ip_kr.txt, ip_tw.txt）；
+    如果新一轮某个地区没有节点，则不覆盖已有地区文件，并继承旧节点至综合 ip.txt。
+    """
+    country_nodes = defaultdict(list)
+    for item in scored_or_sorted_nodes:
+        node_str = item[0] if isinstance(item, (tuple, list)) else item
+        country = node_str.split('#')[-1] if '#' in node_str else ''
+        c_code = country.split()[0].upper() if country else ''
+        if c_code:
+            country_nodes[c_code].append(node_str)
+
+    target_regs = REGIONAL_COUNTRIES if REGIONAL_FILES_ENABLED else []
+    all_selected_nodes = []
+    base_dir = os.path.dirname(os.path.abspath(output_file))
+
+    # 1. 针对指定的目标地区分别生成/保留独立文件
+    for reg in target_regs:
+        reg_file = os.path.join(base_dir, f"ip_{reg.lower()}.txt")
+        limit = COUNTRY_QUOTA.get(reg, PER_COUNTRY_TOP_N)
+        new_nodes = country_nodes.get(reg, [])[:limit]
+
+        if new_nodes:
+            write_ip_txt(new_nodes, reg_file,
+                         AD_HEADER_ENABLED, AD_HEADER_LINES,
+                         AD_FOOTER_ENABLED, AD_FOOTER_LINES,
+                         AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
+                         speed_map=speed_map,
+                         latency_map=latency_map,
+                         http_latency_map=http_latency_map,
+                         http_jitter_map=http_jitter_map)
+            log("信息", f"地区文件已更新：{os.path.basename(reg_file)}（{len(new_nodes)} 个节点）")
+            all_selected_nodes.extend(new_nodes)
+        else:
+            # 新一轮该地区没有节点，检查是否有历史文件
+            if os.path.exists(reg_file) and os.path.getsize(reg_file) > 0:
+                with open(reg_file, "r", encoding="utf-8") as rf:
+                    old_nodes = [l.strip() for l in rf if l.strip() and not l.startswith("#")]
+                if old_nodes:
+                    log("警告", f"本轮未产生新的 {reg} 节点，保留现有 {os.path.basename(reg_file)}（{len(old_nodes)} 个节点）不予覆盖")
+                    all_selected_nodes.extend(old_nodes)
+                else:
+                    log("警告", f"本轮未产生新的 {reg} 节点，且现有 {os.path.basename(reg_file)} 为空")
+            else:
+                log("警告", f"本轮未产生新的 {reg} 节点，且无历史 {os.path.basename(reg_file)}")
+
+    # 2. 处理不在 target_regs 中的其他国家（如果有）
+    for c_code, n_list in country_nodes.items():
+        if c_code not in target_regs:
+            limit = COUNTRY_QUOTA.get(c_code, PER_COUNTRY_TOP_N)
+            all_selected_nodes.extend(n_list[:limit])
+
+    # 3. 汇总写入总文件 OUTPUT_FILE (ip.txt)
+    if len(all_selected_nodes) < MIN_RESULT_COUNT and os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+        log("警告", f"本次优选合计仅产生 {len(all_selected_nodes)} 个达标节点（少于 {MIN_RESULT_COUNT} 个），保留原有 {os.path.basename(output_file)} 不予覆盖")
+    else:
+        write_ip_txt(all_selected_nodes, output_file,
+                     AD_HEADER_ENABLED, AD_HEADER_LINES,
+                     AD_FOOTER_ENABLED, AD_FOOTER_LINES,
+                     AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
+                     speed_map=speed_map,
+                     latency_map=latency_map,
+                     http_latency_map=http_latency_map,
+                     http_jitter_map=http_jitter_map)
+        log("信息", f"{os.path.basename(output_file)} 汇总写入完成（共计 {len(all_selected_nodes)} 个节点）")
+
+    return all_selected_nodes
 
 def raise_fd_limit():
     try:
@@ -1886,14 +1963,24 @@ def main():
                 )
         if USE_GLOBAL_MODE:
             final_selected = [node for node, _, _, _ in results[:GLOBAL_TOP_N]]
+            if len(final_selected) < MIN_RESULT_COUNT and os.path.exists(OUTPUT_FILE) and os.path.getsize(OUTPUT_FILE) > 0:
+                log("警告", f"本次优选仅产生 {len(final_selected)} 个达标节点（少于 {MIN_RESULT_COUNT} 个），保留原有 {OUTPUT_FILE} 不予覆盖")
+            else:
+                write_ip_txt(final_selected, OUTPUT_FILE,
+                             AD_HEADER_ENABLED, AD_HEADER_LINES,
+                             AD_FOOTER_ENABLED, AD_FOOTER_LINES,
+                             AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
+                             speed_map=speed_map,
+                             latency_map=latency_map,
+                             http_latency_map=http_latency_map,
+                             http_jitter_map=http_jitter_map)
+                log("信息", f"ip.txt（{len(final_selected)} 个节点）")
         else:
-            final_selected = []
-            for country, nodes in country_nodes.items():
-                nodes_sorted = sorted(nodes, key=lambda x: (-x[2], x[1]))
-                country_code = country.split()[0].upper() if country else ''
-                limit = COUNTRY_QUOTA.get(country_code, PER_COUNTRY_TOP_N)
-                for node_str, _, _ in nodes_sorted[:limit]:
-                    final_selected.append(node_str)
+            final_selected = process_and_save_ip_files(results, OUTPUT_FILE,
+                                                       speed_map=speed_map,
+                                                       latency_map=latency_map,
+                                                       http_latency_map=http_latency_map,
+                                                       http_jitter_map=http_jitter_map)
     else:
         speed_map = {node: speed for node, speed in bw_results}
         scored_nodes = []
@@ -1923,48 +2010,24 @@ def main():
                 )
         if USE_GLOBAL_MODE:
             final_selected = [item[0] for item in scored_nodes[:GLOBAL_TOP_N]]
+            if len(final_selected) < MIN_RESULT_COUNT and os.path.exists(OUTPUT_FILE) and os.path.getsize(OUTPUT_FILE) > 0:
+                log("警告", f"本次优选仅产生 {len(final_selected)} 个达标节点（少于 {MIN_RESULT_COUNT} 个），保留原有 {OUTPUT_FILE} 不予覆盖")
+            else:
+                write_ip_txt(final_selected, OUTPUT_FILE,
+                             AD_HEADER_ENABLED, AD_HEADER_LINES,
+                             AD_FOOTER_ENABLED, AD_FOOTER_LINES,
+                             AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
+                             speed_map=speed_map,
+                             latency_map=latency_map,
+                             http_latency_map=http_latency_map,
+                             http_jitter_map=http_jitter_map)
+                log("信息", f"ip.txt（{len(final_selected)} 个节点）")
         else:
-            country_scored = defaultdict(list)
-            for item in scored_nodes:
-                node, score, speed, tcp_lat, http_lat = item
-                country = node.split('#')[-1] if '#' in node else ''
-                country_code = country.split()[0].upper() if country else ''
-                if country_code:
-                    country_scored[country_code].append(item)
-            final_selected = []
-            for country, items in country_scored.items():
-                items.sort(key=lambda x: x[1], reverse=True)
-                limit = COUNTRY_QUOTA.get(country, PER_COUNTRY_TOP_N)
-                for item in items[:limit]:
-                    final_selected.append(item[0])
-            score_dict = {item[0]: item[1] for item in scored_nodes}
-            final_selected.sort(key=lambda n: score_dict.get(n, 0), reverse=True)
-        log("信息", "最终优选节点")
-        for i, node in enumerate(final_selected, 1):
-            speed = speed_map.get(node, 0)
-            tcp_lat = latency_map.get(node, latency_map.get(node.split('#')[0], float('inf')))
-            http_lat = http_latency_map.get(node, None)
-            http_jitter = http_jitter_map.get(node, None)
-            line = f"{i}. {node} 速度 {speed:.2f} Mbps"
-            if http_lat is not None:
-                line += f" 延迟 {http_lat:.2f} ms"
-            if http_jitter is not None:
-                line += f" 抖动 {http_jitter:.2f} ms"
-            if tcp_lat != float('inf'):
-                line += f" 延迟 {tcp_lat*1000:.2f} ms"
-            log("信息", line)
-    if len(final_selected) < MIN_RESULT_COUNT and os.path.exists(OUTPUT_FILE) and os.path.getsize(OUTPUT_FILE) > 0:
-        log("警告", f"本次优选仅产生 {len(final_selected)} 个达标节点（少于 {MIN_RESULT_COUNT} 个），保留原有 {OUTPUT_FILE} 不予覆盖")
-    else:
-        write_ip_txt(final_selected, OUTPUT_FILE,
-                     AD_HEADER_ENABLED, AD_HEADER_LINES,
-                     AD_FOOTER_ENABLED, AD_FOOTER_LINES,
-                     AD_PERLINE_ENABLED, AD_PERLINE_TEXT,
-                     speed_map=speed_map,
-                     latency_map=latency_map,
-                     http_latency_map=http_latency_map,
-                     http_jitter_map=http_jitter_map)
-        log("信息", f"ip.txt（{len(final_selected)} 个节点）")
+            final_selected = process_and_save_ip_files(scored_nodes, OUTPUT_FILE,
+                                                       speed_map=speed_map,
+                                                       latency_map=latency_map,
+                                                       http_latency_map=http_latency_map,
+                                                       http_jitter_map=http_jitter_map)
     ip_list = [node.split(':')[0] for node in final_selected]
     batch_update_cloudflare_dns(
         ip_list, ip_info=avail_ip_info, full_bw_results=bw_results,

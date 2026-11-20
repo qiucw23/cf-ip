@@ -46,7 +46,7 @@
     "ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "TW"],
     "_comment_ALLOWED_COUNTRIES": "前置白名单列表",
 
-    "PRE_FILTER_BLOCKED_ENABLED": true,
+    "PRE_FILTER_BLOCKED_ENABLED": false,
     "_comment_PRE_FILTER_BLOCKED_ENABLED": "前置黑名单开关（true=在TCP测试前剔除下方国家）",
 
     "PRE_FILTER_BLOCKED_COUNTRIES": ["CN"],
@@ -134,6 +134,12 @@
 
     "OUTPUT_FILE": "ip.txt",
     "_comment_OUTPUT_FILE": "最终结果保存的文件名",
+
+    "REGIONAL_FILES_ENABLED": true,
+    "_comment_REGIONAL_FILES_ENABLED": "是否根据地区生成五个独立的地区文件（ip_us.txt, ip_jp.txt, ip_sg.txt, ip_kr.txt, ip_tw.txt）；新一轮若某地区无IP则保留历史文件不覆盖",
+
+    "REGIONAL_COUNTRIES": ["US", "JP", "SG", "KR", "TW"],
+    "_comment_REGIONAL_COUNTRIES": "需要生成独立文件的5个目标地区代码",
 
     "ENABLE_LOGGING": false,
     "_comment_ENABLE_LOGGING": "是否启用运行日志（保存为 LOG_FILE 指定的文件，每次运行覆盖）",
