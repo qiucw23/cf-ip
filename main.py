@@ -1810,7 +1810,8 @@ def main():
         for country, nodes in country_nodes.items():
             nodes_sorted = sorted(nodes, key=lambda x: (-x[2], x[1]))
             target_quota = COUNTRY_QUOTA.get(country, PER_COUNTRY_TOP_N)
-            limit = min(len(nodes_sorted), max(target_quota * 4, 25))
+            pool_multiplier = 8 if country in COUNTRY_QUOTA else 5
+            limit = min(len(nodes_sorted), max(target_quota * pool_multiplier, 30))
             for node_str, lat, succ in nodes_sorted[:limit]:
                 candidates.append(node_str)
         log("信息", f"分国家候选池：{total_countries} 国，合计 {len(candidates)} 个候选节点")
