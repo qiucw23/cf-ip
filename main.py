@@ -1685,6 +1685,81 @@ def write_ip_txt(final_nodes, output_file, header_enabled, header_lines, footer_
             for line in footer_lines:
                 f.write(line + "\n")
 
+def load_existing_candidate_nodes():
+    """
+    读取现有本地各地区 ip_*.txt、综合 ip.txt 以及历史有效节点储备池 history_pool.txt，
+    解析为干净的 ip:port#country 格式加入候选测试池，使现有节点能够参与每轮复测，淘汰失效节点，保留有用节点。
+    """
+    candidates = []
+    seen = set()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    file_patterns = ["ip.txt", "history_pool.txt", "history_nodes.txt"] + [f"ip_{r.lower()}.txt" for r in REGIONAL_COUNTRIES]
+    for pattern in file_patterns:
+        filepath = os.path.join(script_dir, pattern)
+        if not os.path.exists(filepath):
+            continue
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split("#")
+                    ipport = parts[0].strip()
+                    tag = parts[1].strip() if len(parts) > 1 else "OTHER"
+                    c_code = tag.split()[0].upper() if tag else "OTHER"
+                    if ":" in ipport:
+                        key = ipport
+                        if key not in seen:
+                            seen.add(key)
+                            candidates.append(f"{ipport}#{c_code}")
+        except Exception as e:
+            log("警告", f"读取现有节点文件 {pattern} 异常: {e}")
+    return candidates
+
+def update_history_pool(successful_nodes, base_dir):
+    """
+    维护一个历史有效节点储备池（history_pool.txt），按地区去重存储（每国最多保留50个），
+    定期自动复测，优胜劣汰。
+    """
+    pool_file = os.path.join(base_dir, "history_pool.txt")
+    existing_by_c = defaultdict(list)
+    if os.path.exists(pool_file):
+        try:
+            with open(pool_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split("#")
+                    ipport = parts[0].strip()
+                    tag = parts[1].strip() if len(parts) > 1 else "OTHER"
+                    c = tag.split()[0].upper() if tag else "OTHER"
+                    clean_node = f"{ipport}#{c}"
+                    if clean_node not in existing_by_c[c]:
+                        existing_by_c[c].append(clean_node)
+        except Exception:
+            pass
+
+    for node in successful_nodes:
+        parts = node.split("#")
+        ipport = parts[0].strip()
+        tag = parts[1].strip() if len(parts) > 1 else "OTHER"
+        c = tag.split()[0].upper() if tag else "OTHER"
+        clean_node = f"{ipport}#{c}"
+        if clean_node not in existing_by_c[c]:
+            existing_by_c[c].insert(0, clean_node)
+
+    try:
+        with open(pool_file, "w", encoding="utf-8") as f:
+            f.write("# 历史优质节点储备池（每轮测速通过后自动追加，每国上限50个，定期自动复测淘汰）\n")
+            for c, nlist in existing_by_c.items():
+                for n in nlist[:50]:
+                    f.write(f"{n}\n")
+    except Exception as e:
+        log("警告", f"更新历史储备池失败: {e}")
+
 def process_and_save_ip_files(scored_or_sorted_nodes, output_file,
                               speed_map=None, latency_map=None,
                               http_latency_map=None, http_jitter_map=None):
@@ -1753,6 +1828,9 @@ def process_and_save_ip_files(scored_or_sorted_nodes, output_file,
                      http_latency_map=http_latency_map,
                      http_jitter_map=http_jitter_map)
         log("信息", f"{os.path.basename(output_file)} 汇总写入完成（共计 {len(all_selected_nodes)} 个节点）")
+
+    # 4. 更新历史有效储备池
+    update_history_pool(all_selected_nodes, base_dir)
 
     return all_selected_nodes
 
@@ -1825,7 +1903,19 @@ def main():
                 if key not in seen:
                     seen.add(key)
                     nodes.append(n)
-    log("信息", f"合并后总计 {len(nodes)} 个节点")
+    log("信息", f"数据源合并后总计 {len(nodes)} 个节点")
+    existing_candidates = load_existing_candidate_nodes()
+    if existing_candidates:
+        seen = {n.split('#')[0] for n in nodes}
+        added_cnt = 0
+        for n in existing_candidates:
+            key = n.split('#')[0]
+            if key not in seen:
+                seen.add(key)
+                nodes.append(n)
+                added_cnt += 1
+        log("信息", f"已载入现有及历史节点 {len(existing_candidates)} 个（新增入池 {added_cnt} 个）")
+    log("信息", f"合并后总计 {len(nodes)} 个候选节点")
     token_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), IP_CALIBRATION_TOKEN_FILE)
     cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), IP_CALIBRATION_CACHE_FILE)
     calibrate_regions(nodes, token_file, cache_file)
