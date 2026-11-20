@@ -1809,9 +1809,14 @@ def main():
         candidates = []
         for country, nodes in country_nodes.items():
             nodes_sorted = sorted(nodes, key=lambda x: (-x[2], x[1]))
-            target_quota = COUNTRY_QUOTA.get(country, PER_COUNTRY_TOP_N)
-            pool_multiplier = 8 if country in COUNTRY_QUOTA else 5
-            limit = min(len(nodes_sorted), max(target_quota * pool_multiplier, 30))
+            if country in COUNTRY_QUOTA:
+                target_quota = COUNTRY_QUOTA[country]
+                limit = min(len(nodes_sorted), max(target_quota * 10, 100))
+            else:
+                # 对非目标国家，仅吸纳超低延迟节点（TCP ≤ 150ms，极大概率是数据源标错但实际就近在亚太的优质节点）
+                fast_other = [n for n in nodes_sorted if n[1] <= 0.150]
+                limit = min(len(fast_other), 10)
+                nodes_sorted = fast_other
             for node_str, lat, succ in nodes_sorted[:limit]:
                 candidates.append(node_str)
         log("信息", f"分国家候选池：{total_countries} 国，合计 {len(candidates)} 个候选节点")

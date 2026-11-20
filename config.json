@@ -14,13 +14,12 @@
         "US": 10,
         "JP": 10,
         "SG": 10,
-        "KR": 5,
-        "DE": 5,
-        "GB": 5
+        "KR": 10,
+        "TW": 10
     },
-    "_comment_COUNTRY_QUOTA": "指定国家保留数量：美国、日本、新加坡、韩国、德国、英国 各10个",
+    "_comment_COUNTRY_QUOTA": "指定国家保留数量：美国、日本、新加坡、韩国、台湾 各10个",
 
-    "BANDWIDTH_CANDIDATES": 500,
+    "BANDWIDTH_CANDIDATES": 800,
     "_comment_BANDWIDTH_CANDIDATES": "进入带宽测速的候选节点数（从TCP通过者中选取前N个）",
 
     "TCP_PROBES": 1,
@@ -41,16 +40,16 @@
     "PROGRESS_PRINT_INTERVAL": 1,
     "_comment_PROGRESS_PRINT_INTERVAL": "进度打印刷新间隔（秒），避免频繁 I/O",
 
-    "FILTER_COUNTRIES_ENABLED": true,
-    "_comment_FILTER_COUNTRIES_ENABLED": "前置白名单开关（true=仅保留下方 ALLOWED_COUNTRIES 中的主要国家，其余在 TCP 测试前剔除）",
+    "FILTER_COUNTRIES_ENABLED": false,
+    "_comment_FILTER_COUNTRIES_ENABLED": "前置白名单开关（关闭前置过滤，避免误杀数据源标错但真实落地在目标国家的优质IP）",
 
-    "ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "DE", "GB"],
-    "_comment_ALLOWED_COUNTRIES": "国家白名单列表（仅保留主要国家：美国 US、日本 JP、新加坡 SG、韩国 KR、德国 DE、英国 GB）",
+    "ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "TW"],
+    "_comment_ALLOWED_COUNTRIES": "前置白名单列表",
 
     "PRE_FILTER_BLOCKED_ENABLED": true,
     "_comment_PRE_FILTER_BLOCKED_ENABLED": "前置黑名单开关（true=在TCP测试前剔除下方国家）",
 
-    "PRE_FILTER_BLOCKED_COUNTRIES": ["CN", "HK"],
+    "PRE_FILTER_BLOCKED_COUNTRIES": ["CN"],
     "_comment_PRE_FILTER_BLOCKED_COUNTRIES": "前置屏蔽的国家代码列表，不受白名单影响",
 
     "PRE_FILTER_PORT_ENABLED": true,
@@ -191,10 +190,10 @@
     "_comment_JITTER_WEIGHT": "首字节延迟抖动（标准差）在综合排序中的权重（越大越排斥延迟波动大的节点）",
 
     "OUTPUT_FILTER_COUNTRIES_ENABLED": true,
-    "_comment_OUTPUT_FILTER_COUNTRIES_ENABLED": "【仅 ip.txt】输出白名单开关（true=仅保留下方 OUTPUT_ALLOWED_COUNTRIES 中的主要国家，其余剔除）",
+    "_comment_OUTPUT_FILTER_COUNTRIES_ENABLED": "【仅 ip.txt】输出白名单开关（true=仅保留下方 OUTPUT_ALLOWED_COUNTRIES 中经CF反代验证校准的真实目标国家，其余剔除）",
 
-    "OUTPUT_ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "DE", "GB"],
-    "_comment_OUTPUT_ALLOWED_COUNTRIES": "【仅 ip.txt】输出白名单列表（仅保留主要国家）",
+    "OUTPUT_ALLOWED_COUNTRIES": ["US", "JP", "SG", "KR", "TW"],
+    "_comment_OUTPUT_ALLOWED_COUNTRIES": "【仅 ip.txt】输出白名单列表（仅保留5个目标国家：美国 US、日本 JP、新加坡 SG、韩国 KR、台湾 TW）",
 
     "FILTER_IPV6_AVAILABILITY": true,
     "_comment_FILTER_IPV6_AVAILABILITY": "【仅DNS】是否过滤落地为 IPv6 的节点",
