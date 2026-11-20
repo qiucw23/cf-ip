@@ -1,14 +1,21 @@
 {
     "_comment": "Cloudflare IP 优选工具配置文件 - 请根据需求修改下方参数",
 
-    "USE_GLOBAL_MODE": true,
-    "_comment_USE_GLOBAL_MODE": "true=全局最优N个；false=每个国家最优N个",
+    "USE_GLOBAL_MODE": false,
+    "_comment_USE_GLOBAL_MODE": "true=全局最优N个；false=分国家配额模式",
 
     "GLOBAL_TOP_N": 50,
     "_comment_GLOBAL_TOP_N": "全局模式下最终保留的节点数量",
 
     "PER_COUNTRY_TOP_N": 5,
-    "_comment_PER_COUNTRY_TOP_N": "分国家模式下每个国家保留的节点数量",
+    "_comment_PER_COUNTRY_TOP_N": "分国家模式下默认每个国家保留的节点数量",
+
+    "COUNTRY_QUOTA": {
+        "US": 10,
+        "JP": 10,
+        "SG": 10
+    },
+    "_comment_COUNTRY_QUOTA": "指定国家保留数量：美国10个、日本10个、新加坡10个，其余国家按 PER_COUNTRY_TOP_N 取5个",
 
     "BANDWIDTH_CANDIDATES": 1000,
     "_comment_BANDWIDTH_CANDIDATES": "进入带宽测速的候选节点数（从TCP通过者中选取前N个）",

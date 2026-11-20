@@ -202,7 +202,8 @@ DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 def load_config():
     defaults = {
-        "USE_GLOBAL_MODE": True, "GLOBAL_TOP_N": 15, "PER_COUNTRY_TOP_N": 1,
+        "USE_GLOBAL_MODE": False, "GLOBAL_TOP_N": 50, "PER_COUNTRY_TOP_N": 5,
+        "COUNTRY_QUOTA": {"US": 10, "JP": 10, "SG": 10},
         "BANDWIDTH_CANDIDATES": 100, "TCP_PROBES": 1, "MIN_SUCCESS_RATE": 1.0,
         "TCP_LATENCY_WEIGHT": 0.0, "TIMEOUT": 3.0, "SOCKET_DEFAULT_TIMEOUT": 3,
         "PROGRESS_PRINT_INTERVAL": 1, "FILTER_COUNTRIES_ENABLED": False,
@@ -294,6 +295,7 @@ cfg = load_config()
 USE_GLOBAL_MODE = cfg["USE_GLOBAL_MODE"]
 GLOBAL_TOP_N = cfg["GLOBAL_TOP_N"]
 PER_COUNTRY_TOP_N = cfg["PER_COUNTRY_TOP_N"]
+COUNTRY_QUOTA = {str(k).upper(): int(v) for k, v in cfg.get("COUNTRY_QUOTA", {}).items()}
 BANDWIDTH_CANDIDATES = cfg["BANDWIDTH_CANDIDATES"]
 TCP_PROBES = cfg["TCP_PROBES"]
 MIN_SUCCESS_RATE = cfg["MIN_SUCCESS_RATE"]
@@ -1692,7 +1694,14 @@ def raise_fd_limit():
 
 def main():
     raise_fd_limit()
-    mode_str = f"全局最优 {GLOBAL_TOP_N} 个" if USE_GLOBAL_MODE else f"每个国家最优 {PER_COUNTRY_TOP_N} 个"
+    if USE_GLOBAL_MODE:
+        mode_str = f"全局最优 {GLOBAL_TOP_N} 个"
+    else:
+        quota_desc = ", ".join([f"{k} {v}个" for k, v in COUNTRY_QUOTA.items()]) if COUNTRY_QUOTA else ""
+        if quota_desc:
+            mode_str = f"分国家配额模式（{quota_desc}，其余各 {PER_COUNTRY_TOP_N} 个）"
+        else:
+            mode_str = f"分国家模式（每个国家最优 {PER_COUNTRY_TOP_N} 个）"
     log("信息", f"模式 {mode_str}")
     if PRE_FILTER_PORT_ENABLED and PRE_FILTER_PORTS:
         log("信息", f"前置端口过滤 启用（{', '.join(PRE_FILTER_PORTS)}）")
@@ -1794,16 +1803,17 @@ def main():
     else:
         country_nodes = defaultdict(list)
         for node_str, lat, country, succ in results:
-            country_nodes[country].append((node_str, lat, succ))
+            c_code = country.split()[0].upper() if country else ''
+            country_nodes[c_code].append((node_str, lat, succ))
         total_countries = len(country_nodes)
-        base_limit = max(1, BANDWIDTH_CANDIDATES // total_countries)
         candidates = []
         for country, nodes in country_nodes.items():
             nodes_sorted = sorted(nodes, key=lambda x: (-x[2], x[1]))
-            limit = min(len(nodes_sorted), base_limit)
+            target_quota = COUNTRY_QUOTA.get(country, PER_COUNTRY_TOP_N)
+            limit = min(len(nodes_sorted), max(target_quota * 4, 25))
             for node_str, lat, succ in nodes_sorted[:limit]:
                 candidates.append(node_str)
-        log("信息", f"分国家候选池：{total_countries} 国，每国 ≤{base_limit}，合计 {len(candidates)}")
+        log("信息", f"分国家候选池：{total_countries} 国，合计 {len(candidates)} 个候选节点")
     if not candidates:
         log("错误", "没有候选节点，退出")
         sys.exit(0)
@@ -1874,7 +1884,9 @@ def main():
             final_selected = []
             for country, nodes in country_nodes.items():
                 nodes_sorted = sorted(nodes, key=lambda x: (-x[2], x[1]))
-                for node_str, _, _ in nodes_sorted[:PER_COUNTRY_TOP_N]:
+                country_code = country.split()[0].upper() if country else ''
+                limit = COUNTRY_QUOTA.get(country_code, PER_COUNTRY_TOP_N)
+                for node_str, _, _ in nodes_sorted[:limit]:
                     final_selected.append(node_str)
     else:
         speed_map = {node: speed for node, speed in bw_results}
@@ -1910,12 +1922,14 @@ def main():
             for item in scored_nodes:
                 node, score, speed, tcp_lat, http_lat = item
                 country = node.split('#')[-1] if '#' in node else ''
-                if country:
-                    country_scored[country].append(item)
+                country_code = country.split()[0].upper() if country else ''
+                if country_code:
+                    country_scored[country_code].append(item)
             final_selected = []
             for country, items in country_scored.items():
                 items.sort(key=lambda x: x[1], reverse=True)
-                for item in items[:PER_COUNTRY_TOP_N]:
+                limit = COUNTRY_QUOTA.get(country, PER_COUNTRY_TOP_N)
+                for item in items[:limit]:
                     final_selected.append(item[0])
             score_dict = {item[0]: item[1] for item in scored_nodes}
             final_selected.sort(key=lambda n: score_dict.get(n, 0), reverse=True)
